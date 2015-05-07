@@ -2,12 +2,22 @@
 require("db.php");
 
 function output($username) {
+
 	global $table_name;
 	global $mysqli;
+	
 	$username = mysqli_real_escape_string($mysqli, $username);
-	$query = "SELECT * FROM $table_name WHERE username = '$username' LIMIT 1";
+
+	if ($username == 'All Users') {
+		$query = "SELECT SUM(runtime) as runtime, SUM(var1) as var1, SUM(var2) as var2, SUM(var3) as var3, SUM(var4) as var4 FROM $table_name";
+	} else {
+	    $query = "SELECT * FROM $table_name WHERE username = '$username' LIMIT 1";
+	}
+	
 	$result = mysqli_query($mysqli, $query);
+	
 	if(mysqli_num_rows($result)==1) {
+	
 		// Vars to write
 		$row = mysqli_fetch_assoc($result);
 		$human_seconds = convert_seconds($row["runtime"]);
@@ -18,13 +28,13 @@ function output($username) {
 		// All coords/data which is going to be written on the image.
 		$loc = array(
 		
-			// string to write,  font size,   x text_area,   text_area_width,     y baseline
-			array("User: ".$username,   12,             0,    			   0,            0),
-			array($human_seconds,       12,             0,                 0,            0),
-			array($row["var1"],         12,             0,                 0,            0),
-			array($row["var2"],         12,             0,                 0,            0),
-			array($row["var3"],         12,             0,                 0,            0),
-			array($row["var4"],         12,             0,                 0,            0)
+			//    string to write,      font size,      x coord,       text_area_width,   y coord
+			array("User: ".$username,   12,             0,             0,                 0),
+			array($human_seconds,       12,             0,             0,                 0),
+			array(adjust($row["var1"]), 12,             0,             0,                 0),
+			array(adjust($row["var2"]), 12,             0,             0,                 0),
+			array(adjust($row["var3"]), 12,             0,             0,                 0),
+			array(adjust($row["var4"]), 12,             0,             0,                 0)
 			
 			// leave the text_area_width at 0 if you do not want the text to be centered.
 		);
@@ -57,30 +67,35 @@ function output($username) {
 		
 		// send the image to the browser
 		header("Content-type: image/png");
+		
  		imagepng($image);
 		imagedestroy($image);
-	}
-	else {
+	} else {
 		echo "Username not found";
 	}
 }
 
 function input($username, $runtime, $var1, $var2, $var3, $var4) {
+
 	global $table_name;
 	global $mysqli;
+	
 	$username = mysqli_real_escape_string($mysqli, $username);
 	$runtime = mysqli_real_escape_string($mysqli, $runtime);
 	$var1 = mysqli_real_escape_string($mysqli, $var1);
 	$var2 = mysqli_real_escape_string($mysqli, $var2);
 	$var3 = mysqli_real_escape_string($mysqli, $var3);
 	$var4 = mysqli_real_escape_string($mysqli, $var4);
+	
 	$query = "SELECT * FROM $table_name WHERE username = '$username'";
+	
 	$result = mysqli_query($mysqli, $query);
+	
 	if(mysqli_num_rows($result)==1) {
+	
 		if(empty($username) || empty($runtime)) {
 			echo "You are missing some parameters.";
-		}
-		else {
+		} else {
 			$row = mysqli_fetch_assoc($result);
 			$runtime = $runtime + $row["runtime"];
 			$var1 = $var1 + $row["var1"];
@@ -91,20 +106,24 @@ function input($username, $runtime, $var1, $var2, $var3, $var4) {
 			$update_result = mysqli_query($mysqli, $update_query);
 			if(!$update_result) {
 				echo "Error performing query.";
-			}
-			else {
+			} else {
+			
 				// delete the cached image since the data has been updated now
 				if (file_exists("users/".$username.".png")) {
         			unlink("users/".$username.".png");
 				}
+				
+				// delete the 'all users' image as well since a user has updated.
+				if (file_exists("users/All Users.png")) {
+                    unlink("users/All Users.png");
+                }
 			}
 		}
 	}
 	else if(mysqli_num_rows($result)==0) {
 		if(empty($username) || empty($runtime)) {
 			echo "You are missing some parameters.";
-		}
-		else {
+		} else {
 			$insert_query = "INSERT INTO $table_name (username, runtime, var1, var2, var3, var4) VALUES ('$username', '$runtime', '$var1', '$var2', '$var3', '$var4')";
 			$insert_result = mysqli_query($mysqli, $insert_query);
 			if(!$insert_result) {
@@ -140,5 +159,16 @@ function convert_seconds($d)
         return $last;
     else
         return join( ', ', $parts ) . " and " . $last;
+}
+
+function adjust($int) {
+	if ($int > 1000000) {
+		return ((int) ($int / 1000000))."M";
+	}
+	if ($int > 1000) {
+		return ((int) ($int / 1000))."K";
+	}
+	
+	return $int;
 }
 ?>
