@@ -7,11 +7,10 @@ function output($username) {
 	global $mysqli;
 	
 	$username = mysqli_real_escape_string($mysqli, $username);
+	$query = "SELECT * FROM $table_name WHERE username = '$username' LIMIT 1";
 
 	if ($username == 'All Users') {
-		$query = "SELECT SUM(runtime) as runtime, SUM(var1) as var1, SUM(var2) as var2, SUM(var3) as var3, SUM(var4) as var4 FROM $table_name";
-	} else {
-	    $query = "SELECT * FROM $table_name WHERE username = '$username' LIMIT 1";
+            $query = "SELECT SUM(runtime) as runtime, SUM(var1) as var1, SUM(var2) as var2, SUM(var3) as var3, SUM(var4) as var4 FROM $table_name";
 	}
 	
 	$result = mysqli_query($mysqli, $query);
